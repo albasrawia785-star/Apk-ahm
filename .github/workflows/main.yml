@@ -19,24 +19,33 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
     - name: Unzip Project Files
       run: |
         unzip X.zip -d project_dir
 
-    - name: Find Gradle and Build APK
+    - name: Build APK
       run: |
-        # البحث عن المجلد الذي يحتوي على ملف gradlew والدخول إليه
-        GRADLE_DIR=$(find project_dir -name gradlew -exec dirname {} \;)
-        echo "Found gradlew in: $GRADLE_DIR"
-        cd "$GRADLE_DIR"
+        # البحث عن المجلد الذي يحتوي على ملف build.gradle أو build.gradle.kts
+        BUILD_DIR=$(find project_dir -name "build.gradle*" -exec dirname {} \; | head -n 1)
+        echo "Found project build file in: $BUILD_DIR"
+        cd "$BUILD_DIR"
         
-        # إعطاء صلاحيات التنفيذ وتشغيل البناء
-        chmod +x gradlew
-        ./gradlew assembleDebug
+        # التحقق مما إذا كان gradlew موجوداً، وإذا لم يكن موجوداً نستخدم مثبت النظام
+        if [ -f "gradlew" ]; then
+          echo "Using project gradlew wrapper..."
+          chmod +x gradlew
+          ./gradlew assembleDebug
+        else
+          echo "gradlew not found. Using system gradle..."
+          gradle assembleDebug
+        fi
         
-        # نقل ملف الـ APK الناتج إلى المجلد الرئيسي لسهولة رفعه
+        # إنشاء مجلد المخرجات ونقل ملف الـ APK إليه
         mkdir -p $GITHUB_WORKSPACE/output
-        cp app/build/outputs/apk/debug/*.apk $GITHUB_WORKSPACE/output/
+        find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/output/ \;
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
