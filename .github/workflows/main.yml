@@ -26,20 +26,22 @@ jobs:
       run: |
         unzip X.zip -d project_dir
 
-    - name: Build APK
+    - name: Generate Debug Keystore & Build APK
       run: |
-        # البحث عن المجلد الذي يحتوي على ملف build.gradle أو build.gradle.kts
+        # البحث عن المجلد الذي يحتوي على ملف build.gradle
         BUILD_DIR=$(find project_dir -name "build.gradle*" -exec dirname {} \; | head -n 1)
         echo "Found project build file in: $BUILD_DIR"
         cd "$BUILD_DIR"
         
-        # التحقق مما إذا كان gradlew موجوداً، وإذا لم يكن موجوداً نستخدم مثبت النظام
+        # توليد ملف debug.keystore افتراضي في المجلد الرئيسي للمشروع لحل مشكلة التوقيع
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        echo "Generated debug.keystore successfully."
+
+        # تشغيل البناء باستخدام Gradle المثبت في النظام
         if [ -f "gradlew" ]; then
-          echo "Using project gradlew wrapper..."
           chmod +x gradlew
           ./gradlew assembleDebug
         else
-          echo "gradlew not found. Using system gradle..."
           gradle assembleDebug
         fi
         
