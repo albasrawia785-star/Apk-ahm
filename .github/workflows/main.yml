@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,22 +21,25 @@ jobs:
 
     - name: Unzip Project Files
       run: |
-        unzip X.zip -d unzipped_project
-        # نقل الملفات للمجلد الرئيسي إذا كان الضغط يحتوي مجلداً داخلياً
-        if [ -d "unzipped_project/app" ]; then
-          cp -r unzipped_project/* .
-        elif [ -d "unzipped_project/"*"/app" ]; then
-          cp -r unzipped_project/*/* .
-        fi
+        unzip X.zip -d project_dir
 
-    - name: Make Gradle Executable
-      run: chmod +x gradlew
-
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+    - name: Find Gradle and Build APK
+      run: |
+        # البحث عن المجلد الذي يحتوي على ملف gradlew والدخول إليه
+        GRADLE_DIR=$(find project_dir -name gradlew -exec dirname {} \;)
+        echo "Found gradlew in: $GRADLE_DIR"
+        cd "$GRADLE_DIR"
+        
+        # إعطاء صلاحيات التنفيذ وتشغيل البناء
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+        # نقل ملف الـ APK الناتج إلى المجلد الرئيسي لسهولة رفعه
+        mkdir -p $GITHUB_WORKSPACE/output
+        cp app/build/outputs/apk/debug/*.apk $GITHUB_WORKSPACE/output/
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: output/*.apk
